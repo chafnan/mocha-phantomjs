@@ -91,14 +91,18 @@ var spawnArgs = [script, page, reporter, config];
 
 var phantomjs;
 if (program.path !== undefined) {
-  if (exists(program.path)) {
-    phantomjs = spawn(program.path, spawnArgs);
+  resolvedPath = path.resolve(program.path);
+  if (exists(resolvedPath)) {
+    phantomjs = spawn(resolvedPath, spawnArgs);
   } else {
     console.error("PhantomJS does not exist at '" + program.path + "'. Looking for PhantomJS in the PATH.");
   }
 }
 if (phantomjs === undefined) {
-  cmd = which.sync('phantomjs');
+  var cmd = null;
+  try {
+    cmd = which.sync('phantomjs');
+  } catch(err) {}
   if (cmd) {
     phantomjs = spawn(cmd, spawnArgs);
   }
@@ -115,14 +119,16 @@ if (phantomjs === undefined) {
     }
   }
 }
-if (phantomjs === undefined) { phantomjs = spawn('phantomjs', spawnArgs); }
 
-phantomjs.stdout.on('data', function(data){
-  print(data.toString());
-})
+if (phantomjs) {
+  phantomjs.stdout.pipe(process.stdout);
+  phantomjs.stderr.pipe(process.stderr);
 
-phantomjs.on('exit', function(code){
-  if (code === 127) { print("Perhaps phantomjs is not installed?\n"); }
-  process.exit(code);
-})
+  phantomjs.on('exit', function(code){
+    if (code === 127) { print("Perhaps phantomjs is not installed?\n"); }
+    process.exit(code);
+  });
+} else {
+  console.error('PhantomJS not found.');
+}
 
